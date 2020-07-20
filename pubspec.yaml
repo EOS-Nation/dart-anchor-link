@@ -1,0 +1,27 @@
+name: dart_anchor_link
+description: Persistent sessions that allows applications to setup a persistent and secure channel for pushing signature requests (ESR/EEP-7) to a wallet.
+version: 0.0.0
+homepage: https://github.com/TheRealPaco/dart-anchor-link
+
+environment:
+  sdk: ">=2.7.0 <3.0.0"
+
+dependencies:
+  http: ^0.12.0+4
+  pointycastle: ^1.0.2
+  uuid: ^2.2.0
+  websocket: ^0.0.5
+  archive: 
+    git:
+      url: https://github.com/TheRealPaco/archive.git
+  eosdart_ecc: ^0.4.1
+  eosdart:
+    git:
+      url: https://github.com/TheRealPaco/eosdart.git
+  dart_esr:
+    git:
+      url: https://github.com/EOS-Nation/dart-esr
+      
+dev_dependencies:
+  test: ^1.0.0
+  build_runner: ^1.7.4
