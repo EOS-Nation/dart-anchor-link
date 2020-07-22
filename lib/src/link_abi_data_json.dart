@@ -1,4 +1,4 @@
-String defaultJson = '''
+String linkAbiData = '''
 {
     "version": "eosio::abi/1.1",
     "types": [],
