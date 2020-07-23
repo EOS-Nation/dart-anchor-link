@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-import 'package:dart_anchor_link/src/link_exceptions.dart';
+import 'package:dart_anchor_link/src/exceptions.dart';
 import 'package:dart_anchor_link/src/link_interfaces.dart';
 import 'package:dart_anchor_link/src/link_session_interfaces.dart';
 import 'package:dart_anchor_link/src/link_storage.dart';

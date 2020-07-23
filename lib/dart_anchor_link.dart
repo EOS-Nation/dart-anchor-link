@@ -6,4 +6,4 @@ export 'src/link_session_interfaces.dart';
 export 'src/link_storage.dart';
 export 'src/link_transport.dart';
 
-export 'src/link_exceptions.dart';
+export 'src/exceptions.dart';
