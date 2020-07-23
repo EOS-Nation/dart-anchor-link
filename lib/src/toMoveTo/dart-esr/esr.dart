@@ -1,5 +1,5 @@
 //TODO: Move to dart_esr create signing_request
-abstract class SigningRequest {
+class SigningRequest {
   Map<String, dynamic> data = {};
   void pushInfo(Map<String, String> info) {
     if (!data.containsKey('info')) {
@@ -9,6 +9,8 @@ abstract class SigningRequest {
   }
 }
 
-abstract class CallbackPayload {}
+class CallbackPayload {}
 
-abstract class SigningRequestCreateArguments {}
+class SigningRequestCreateArguments {}
+
+class SigningRequestEncodingOptions {}

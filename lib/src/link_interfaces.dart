@@ -1,23 +1,24 @@
 import 'dart:typed_data';
 
 import 'package:dart_anchor_link/src/link_options.dart';
+import 'package:dart_anchor_link/src/link_session.dart';
 import 'package:dart_anchor_link/src/link_session_interfaces.dart';
 import 'package:dart_anchor_link/src/link_storage.dart';
 import 'package:dart_anchor_link/src/link_transport.dart';
+import 'package:dart_anchor_link/src/toMoveTo/dart-esr/esr.dart';
 import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart';
 import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart_jsonrpc.dart';
 import 'package:dart_esr/dart_esr.dart' as esr;
+import 'package:dart_esr/dart_esr.dart';
 import 'toMoveTo/dart-esr/esr.dart' as esr;
 
 /** EOSIO permission level with actor and signer, a.k.a. 'auth', 'authority' or 'account auth' */
 class PermissionLevel {
-  final String _actor;
-  String get actor => _actor;
+  String actor;
 
-  final String _permission;
-  String get permission => _permission;
+  String permission;
 
-  PermissionLevel(this._actor, this._permission);
+  PermissionLevel(this.actor, this.permission);
 }
 
 /**
@@ -100,10 +101,11 @@ abstract class Link {
   LinkStorage _storage;
   get storage => _storage;
 
-  dynamic _serviceAddress;
-  dynamic _requestOptions;
-  dynamic _abiCache;
-  dynamic _pendingAbis;
+  String _serviceAddress;
+  SigningRequestEncodingOptions _requestOptions;
+  Map<dynamic, dynamic> _abiCache;
+  Map<dynamic, dynamic> _pendingAbis;
+
   /** Create a new link instance. */
   Link(LinkOptions options);
   /**
@@ -198,9 +200,10 @@ abstract class Link {
      */
   AuthorityProvider makeAuthorityProvider();
   /** Makes sure session is in storage list of sessions and moves it to top (most recently used). */
-  dynamic _touchSession;
+  void _touchSession(String identifier, RequiredAuth auth,
+      {bool remove = false});
   /** Makes sure session is in storage list of sessions and moves it to top (most recently used). */
-  dynamic _storeSession;
+  void _storeSession(String identifier, LinkChannelSession session);
   /** Session storage key for identifier and suffix. */
-  dynamic _sessionKey;
+  void _sessionKey(String identifier, String suffix);
 }
