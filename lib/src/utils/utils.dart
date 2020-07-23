@@ -4,15 +4,10 @@ import 'dart:typed_data';
 import 'package:dart_anchor_link/src/link_abi_data_json.dart';
 
 import 'package:dart_anchor_link/src/models/sealed_message.dart';
-import 'package:dart_anchor_link/src/utils/aes_cbc.dart';
+import 'package:dart_anchor_link/src/toMoveTo/ecc/aes_cbc.dart';
 
 import 'package:eosdart_ecc/eosdart_ecc.dart' as ecc;
 import 'package:eosdart/eosdart.dart' as eosDart;
-
-import 'package:pointycastle/api.dart';
-import 'package:pointycastle/block/aes_fast.dart';
-import 'package:pointycastle/block/modes/cbc.dart';
-import 'package:pointycastle/block/modes/ecb.dart';
 
 Map<String, eosDart.Type> types = eosDart.getTypesFromAbi(
     eosDart.createInitialTypes(),

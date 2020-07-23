@@ -1,7 +1,7 @@
-import 'package:dart_anchor_link/src/esr.dart';
-import 'package:dart_anchor_link/src/link.dart';
-import 'package:dart_anchor_link/src/link_session.dart';
+import 'package:dart_anchor_link/src/link_interfaces.dart';
+import 'package:dart_anchor_link/src/link_session_interfaces.dart';
 import 'package:dart_anchor_link/src/link_storage.dart';
+import 'package:dart_anchor_link/src/toMoveTo/dart-esr/esr.dart';
 
 /**
  * Protocol link transports need to implement.
@@ -15,7 +15,7 @@ abstract class LinkTransport {
      * @param cancel Can be called to abort the request.
      */
   void onRequest(SigningRequest request,
-      Function({String reason, Exception exception}) cancel);
+      void Function({String reason, Exception exception}) cancel);
   /** Called if the request was successful. */
   void onSuccess(SigningRequest request, TransactResult result);
   /** Called if the request failed. */
@@ -26,7 +26,7 @@ abstract class LinkTransport {
      * @param request Signing request that will be sent over the session.
      */
   void onSessionRequest(LinkSession session, SigningRequest request,
-      Function({String reason, Exception exception}) cancel);
+      void Function({String reason, Exception exception}) cancel);
 
   /** Can be implemented if transport provides a storage as well. */
   LinkStorage storage;
