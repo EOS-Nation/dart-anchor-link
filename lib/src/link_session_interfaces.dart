@@ -1,6 +1,9 @@
+import 'package:dart_anchor_link/src/link.dart';
 import 'package:dart_anchor_link/src/link_interfaces.dart';
 import 'package:dart_anchor_link/src/link_session.dart';
-import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart';
+import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart'
+    as eosDart;
+import 'package:dart_esr/dart_esr.dart';
 
 /**
  * Type describing a link session that can create a eosjs compatible
@@ -14,14 +17,14 @@ abstract class LinkSession {
   /** The public key the session can sign for. */
   String publicKey;
   /** The EOSIO auth (a.k.a. permission level) the session can sign for. */
-  PermissionLevel auth;
+  Authorization auth;
   /** Session type, e.g. 'channel'.  */
   String type;
   /** Arbitrary metadata that will be serialized with the session. */
   Map<String, dynamic> metadata;
 
   /** Creates a eosjs compatible authority provider. */
-  AuthorityProvider makeAuthorityProvider();
+  eosDart.AuthorityProvider makeAuthorityProvider();
   /** Creates a eosjs compatible signature provider that can sign for the session public key. */
   SignatureProvider makeSignatureProvider();
   /**
@@ -75,7 +78,7 @@ class ChannelInfo {
 abstract class LinkSessionData {}
 
 class LinkChannelSessionData implements LinkSessionData {
-  PermissionLevel auth;
+  Authorization auth;
   String identifier;
   String publicKey;
   ChannelInfo channel;
@@ -86,7 +89,7 @@ class LinkChannelSessionData implements LinkSessionData {
 }
 
 class LinkFallbackSessionData implements LinkSessionData {
-  PermissionLevel auth;
+  Authorization auth;
   String identifier;
   String publicKey;
 

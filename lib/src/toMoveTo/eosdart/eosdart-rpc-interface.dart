@@ -64,7 +64,8 @@ abstract class GetRawCodeAndAbiResult {
 }
 
 /** Arguments for `push_transaction` */
-abstract class PushTransactionArgs {
+class PushTransactionArgs {
   List<String> signatures;
   Uint8List serializedTransaction;
+  PushTransactionArgs(this.signatures, this.serializedTransaction);
 }

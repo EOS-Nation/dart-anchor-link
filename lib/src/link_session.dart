@@ -3,14 +3,19 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'package:dart_anchor_link/src/link.dart';
 import 'package:dart_anchor_link/src/exceptions.dart';
 import 'package:dart_anchor_link/src/link_interfaces.dart';
 import 'package:dart_anchor_link/src/link_session_interfaces.dart';
 import 'package:dart_anchor_link/src/link_storage.dart';
 import 'package:dart_anchor_link/src/link_transport.dart';
-import 'package:dart_anchor_link/src/toMoveTo/dart-esr/esr.dart';
-import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart';
 import 'package:dart_anchor_link/src/utils/utils.dart';
+
+import 'package:dart_esr/dart_esr.dart';
+
+import 'toMoveTo/eosdart/eosdart-api-interface.dart' as eosDart;
+
+// import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart';
 
 class LinkChannelSession extends LinkSession implements LinkTransport {
   LinkChannelSession(
@@ -44,32 +49,33 @@ class LinkChannelSession extends LinkSession implements LinkTransport {
   LinkStorage storage;
 
   @override
-  void onSessionRequest(LinkSession session, SigningRequest request,
+  void onSessionRequest(LinkSession session, SigningRequestManager request,
       Function({Exception exception, String reason}) cancel) {
     // Not implemented in LinkChannelSession
   }
 
   @override
-  void onSuccess(SigningRequest request, TransactResult result) {
+  void onSuccess(SigningRequestManager request, TransactResult result) {
     if (this.link.transport.onSuccess is Function) {
       this.link.transport.onSuccess(request, result);
     }
   }
 
   @override
-  void onFailure(SigningRequest request, Exception exception) {
+  void onFailure(SigningRequestManager request, Exception exception) {
     if (this.link.transport.onFailure is Function) {
       this.link.transport.onFailure(request, exception);
     }
   }
 
   @override
-  Future<void> onRequest(SigningRequest request,
+  Future<void> onRequest(SigningRequestManager request,
       Function({Exception exception, String reason}) cancel) async {
     var now = DateTime.now().add(Duration(milliseconds: this._timeout));
-    var info = <String, String>{
-      'expiration': now.toIso8601String(),
-    };
+    var info = InfoPair()
+      ..key = 'expiration'
+      ..key = 'expiration'
+      ..value = now.toIso8601String();
 
     if (this.link.transport.onSessionRequest is Function) {
       this.link.transport.onSessionRequest(this, request, cancel);
@@ -82,7 +88,7 @@ class LinkChannelSession extends LinkSession implements LinkTransport {
             exception: SessionException('Wallet did not respond in time',
                 LinkExceptionCode.E_TIMEOUT)));
 
-    request.pushInfo(info);
+    request.data.info.add(info);
 
     try {
       var xBuoyWait = (this._timeout / 1000).round();
@@ -105,10 +111,10 @@ class LinkChannelSession extends LinkSession implements LinkTransport {
   }
 
   @override
-  Future<SigningRequest> prepare(
-      SigningRequest request, LinkSession session) async {
+  Future<SigningRequestManager> prepare(SigningRequestManager request,
+      {LinkSession session}) async {
     if (this.link.transport.prepare is Function) {
-      return this.link.transport.prepare(request, this);
+      return this.link.transport.prepare(request, session: this);
     }
     return request;
   }
@@ -124,7 +130,7 @@ class LinkChannelSession extends LinkSession implements LinkTransport {
    * From LinkSession 
    */
   @override
-  AuthorityProvider makeAuthorityProvider() =>
+  eosDart.AuthorityProvider makeAuthorityProvider() =>
       this.link.makeAuthorityProvider();
 
   @override
@@ -163,27 +169,27 @@ class LinkFallbackSession extends LinkSession implements LinkTransport {
   LinkStorage storage;
 
   @override
-  void onSessionRequest(LinkSession session, SigningRequest request,
+  void onSessionRequest(LinkSession session, SigningRequestManager request,
       void Function({Exception exception, String reason}) cancel) {
     // TODO: implement onSessionRequest
   }
 
   @override
-  void onSuccess(SigningRequest request, TransactResult result) {
+  void onSuccess(SigningRequestManager request, TransactResult result) {
     if (this.link.transport.onSuccess is Function) {
       this.link.transport.onSuccess(request, result);
     }
   }
 
   @override
-  void onFailure(SigningRequest request, Exception exception) {
+  void onFailure(SigningRequestManager request, Exception exception) {
     if (this.link.transport.onFailure is Function) {
       this.link.transport.onFailure(request, exception);
     }
   }
 
   @override
-  void onRequest(SigningRequest request,
+  void onRequest(SigningRequestManager request,
       void Function({Exception exception, String reason}) cancel) {
     if (this.link.transport.onSessionRequest is Function) {
       this.link.transport.onSessionRequest(this, request, cancel);
@@ -193,10 +199,10 @@ class LinkFallbackSession extends LinkSession implements LinkTransport {
   }
 
   @override
-  Future<SigningRequest> prepare(
-      SigningRequest request, LinkSession session) async {
+  Future<SigningRequestManager> prepare(SigningRequestManager request,
+      {LinkSession session}) async {
     if (this.link.transport.prepare is Function) {
-      return this.link.transport.prepare(request, this);
+      return this.link.transport.prepare(request, session: this);
     }
     return request;
   }
@@ -216,7 +222,7 @@ class LinkFallbackSession extends LinkSession implements LinkTransport {
       this.link.makeSignatureProvider([this.publicKey], transport: this);
 
   @override
-  AuthorityProvider makeAuthorityProvider() =>
+  eosDart.AuthorityProvider makeAuthorityProvider() =>
       this.link.makeAuthorityProvider();
 
   @override
