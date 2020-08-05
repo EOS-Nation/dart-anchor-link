@@ -17,4 +17,9 @@ class JsonRpc {
     //TODO: push_transaction not implemented yet
     throw 'push_transaction not implemented yet';
   }
+
+  Future<eosDart.Account> getAccount(String accountName) {
+    //TODO: getAccount not implemented yet
+    throw 'getAccount not implemented yet';
+  }
 }

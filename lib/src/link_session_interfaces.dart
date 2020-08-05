@@ -1,9 +1,11 @@
 import 'package:dart_anchor_link/src/link.dart';
 import 'package:dart_anchor_link/src/link_interfaces.dart';
 import 'package:dart_anchor_link/src/link_session.dart';
+
+import 'package:dart_esr/dart_esr.dart';
+
 import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart'
     as eosDart;
-import 'package:dart_esr/dart_esr.dart';
 
 /**
  * Type describing a link session that can create a eosjs compatible

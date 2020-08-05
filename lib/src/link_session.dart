@@ -15,8 +15,6 @@ import 'package:dart_esr/dart_esr.dart';
 
 import 'toMoveTo/eosdart/eosdart-api-interface.dart' as eosDart;
 
-// import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart';
-
 class LinkChannelSession extends LinkSession implements LinkTransport {
   LinkChannelSession(
       Link link, LinkChannelSessionData data, Map<String, dynamic> metadata)

@@ -1,7 +1,6 @@
 import 'package:dart_anchor_link/src/link_storage.dart';
 import 'package:dart_anchor_link/src/link_transport.dart';
 import 'package:dart_esr/dart_esr.dart';
-import 'package:eosdart/eosdart.dart' as eosDart;
 
 import 'toMoveTo/eosdart/eosdart_jsonrpc.dart';
 

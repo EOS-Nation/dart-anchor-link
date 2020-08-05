@@ -4,6 +4,8 @@ import 'dart:html';
 import 'dart:math';
 
 import 'package:dart_anchor_link/src/exceptions.dart';
+import 'package:dart_anchor_link/src/models/link_create.dart';
+import 'package:dart_anchor_link/src/utils/utils.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:dart_anchor_link/src/link_interfaces.dart';
@@ -15,6 +17,7 @@ import 'package:dart_anchor_link/src/link_session_interfaces.dart';
 
 import 'package:dart_esr/dart_esr.dart';
 import 'package:eosdart/eosdart.dart' as eosDart;
+import 'package:eosdart_ecc/eosdart_ecc.dart' as ecc;
 
 import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart'
     as eosDart;
@@ -264,7 +267,32 @@ class Link implements AbiProvider {
      * @param transport Transport override, for internal use.
      */
   Future<TransactResult> transact(TransactArgs args,
-      {TransactOptions options, LinkTransport transport}) {}
+      {TransactOptions options, LinkTransport transport}) async {
+    LinkTransport t = transport ?? this.transport;
+    var broadcast = options != null ? options.broadcast : true;
+
+    // Initialize the loading state of the transport
+    if (t != null && t.showLoading is Function) {
+      t.showLoading();
+    }
+
+    SigningRequestCreateArguments requestArgs;
+    if (args.action != null) {
+      requestArgs = SigningRequestCreateArguments(action: args.action);
+    } else if (args.actions != null) {
+      requestArgs = SigningRequestCreateArguments(actions: args.actions);
+    } else if (args.transaction != null) {
+      requestArgs =
+          SigningRequestCreateArguments(transaction: args.transaction);
+    }
+    //TODO add code eosjs transact compat: upgrade to transaction if args have any header fields
+
+    var request = await this.createRequest(requestArgs, transport: t);
+    var result =
+        await this.sendRequest(request, transport: t, broadcast: broadcast);
+    return result;
+  }
+
   /**
      * Send an identity request and verify the identity proof.
      * @param requestPermission Optional request permission if the request is for a specific account or permission.
@@ -272,14 +300,120 @@ class Link implements AbiProvider {
      * @note This is for advanced use-cases, you probably want to use [[Link.login]] instead.
      */
   Future<IdentifyResult> identify(
-      {Authorization requestPermission,
-      dynamic info}) {} // info Map<String,String > || Uint8List
+      {Authorization requestPermission, Map<String, String> info}) async {
+    var identifyRequest = SigningRequestCreateArguments(
+        identity: Identity()..authorization = requestPermission, info: info);
+    var request = await this.createRequest(identifyRequest);
+
+    var res = await this.sendRequest(request);
+    if (!res.request.isIdentity()) {
+      throw IdentityException('Unexpected response');
+    }
+
+    var signature = ecc.EOSSignature.fromString(res.signatures[0]);
+    //low confidence in it working but seem the same as in js
+    var signerKey = signature.toString();
+
+    var account = await this.rpc.getAccount(res.signer.actor);
+    if (account == null) {
+      throw IdentityException(
+          'Signature from unknown account: ${res.signer.actor}');
+    }
+    var permission = account.permissions.firstWhere(
+        (permission) => permission.permName == res.signer.permission);
+    if (permission == null) {
+      throw IdentityException(
+          '${res.signer.actor} signed for unknown permission: ${res.signer.permission}');
+    }
+    var auth = permission.requiredAuth;
+    var keyAuth =
+        auth.keys.firstWhere((key) => publicKeyEqual(key.key, signerKey));
+    if (keyAuth == null) {
+      throw IdentityException(
+          '${formatAuth(res.signer)} has no key matching id signature');
+    }
+    if (auth.threshold > keyAuth.weight) {
+      throw IdentityException(
+          '${formatAuth(res.signer)} signature does not reach auth threshold');
+    }
+    if (requestPermission != null) {
+      if ((requestPermission.actor != ESRConstants.PlaceholderName &&
+              requestPermission.actor != res.signer.actor) ||
+          (requestPermission.permission != ESRConstants.PlaceholderPermission &&
+              requestPermission.permission != res.signer.permission)) {
+        throw new IdentityException(
+            'Unexpected identity proof from ${formatAuth(res.signer)}, expected ${formatAuth(requestPermission)} ');
+      }
+    }
+
+    return IdentifyResult(account, signerKey, res.request, res.signatures,
+        res.payload, res.signer, res.transaction, res.serializedTransaction);
+  }
+
   /**
      * Login and create a persistent session.
      * @param identifier The session identifier, an EOSIO name (`[a-z1-5]{1,12}`).
      *                   Should be set to the contract account if applicable.
      */
-  Future<LoginResult> login(String identifier) {}
+  Future<LoginResult> login(String identifier) async {
+    var privateKey = await generatePrivateKey();
+    var requestKey = privateKey.toEOSPublicKey();
+    var createInfo = LinkCreate()
+      ..sessionName = identifier
+      ..requestKey = requestKey.toString();
+
+    var encodedData = abiEncode(createInfo, 'link_create');
+    var res = await this.identify(
+      info: {'link': encodedData.toString()},
+    );
+
+    var metadata = <String, bool>{
+      'sameDevice': res.request.getRawInfo()['return_path'] != null
+    };
+
+    LinkSession session;
+    if (res.payload.linkCh != null &&
+        res.payload.linkKey != null &&
+        res.payload.linkName != null) {
+      session = new LinkChannelSession(
+          this,
+          LinkChannelSessionData(
+            identifier,
+            res.signer,
+            res.signerKey,
+            ChannelInfo(
+              res.payload.linkKey,
+              res.payload.linkName,
+              res.payload.linkCh,
+            ),
+            privateKey.toString(),
+          ),
+          metadata);
+    } else {
+      session = LinkFallbackSession(
+          this,
+          LinkFallbackSessionData(
+            identifier,
+            res.signer,
+            res.signerKey,
+          ),
+          metadata);
+    }
+    if (this.storage != null) {
+      await this._storeSession(identifier, session);
+    }
+    return LoginResult(
+        session,
+        res.account,
+        res.signerKey,
+        res.request,
+        res.signatures,
+        res.payload,
+        res.signer,
+        res.transaction,
+        res.serializedTransaction);
+  }
+
   /**
      * Restore previous session, see [[Link.login]] to create a new session.
      * @param identifier The session identifier, should be same as what was used when creating the session with [[Link.login]].
@@ -287,23 +421,88 @@ class Link implements AbiProvider {
      * @returns A [[LinkSession]] instance or null if no session can be found.
      * @throws If no [[LinkStorage]] adapter is configured or there was an error retrieving the session data.
      **/
-  Future<LinkSession> restoreSession(String identifier, {Authorization auth}) {}
+  Future<LinkSession> restoreSession(String identifier,
+      {Authorization auth}) async {
+    if (this.storage == null) {
+      throw 'Unable to restore session: No storage adapter configured';
+    }
+    String key;
+    if (auth != null) {
+      key = this._sessionKey(identifier, formatAuth(auth));
+    } else {
+      var latest = (await this.listSessions(identifier))[0];
+      if (latest == null) {
+        return null;
+      }
+      key = this._sessionKey(identifier, formatAuth(latest));
+    }
+    var data = await this.storage.read(key);
+    if (data == null) {
+      return null;
+    }
+    var sessionData;
+    try {
+      //TODO check json encoding
+      sessionData = jsonDecode(data);
+    } catch (error) {
+      throw 'Unable to restore session: Stored JSON invalid (${error.toString})';
+    }
+    var session = LinkSession.restore(this, sessionData);
+    if (auth != null) {
+      // update latest used
+      await this._touchSession(identifier, auth);
+    }
+    return session;
+  }
+
   /**
      * List stored session auths for given identifier.
      * The most recently used session is at the top (index 0).
      * @throws If no [[LinkStorage]] adapter is configured or there was an error retrieving the session list.
      **/
-  Future<List<Authorization>> listSessions(String identifier) {}
+  Future<List<Authorization>> listSessions(String identifier) async {
+    if (this.storage == null) {
+      throw 'Unable to list sessions: No storage adapter configured';
+    }
+    var key = this._sessionKey(identifier, 'list');
+    List<Authorization> list;
+    try {
+      var data = await this._storage.read(key);
+      //TODO check json encoding
+      list = jsonDecode(data);
+    } catch (error) {
+      throw 'Unable to list sessions: Stored JSON invalid (${error.toString()})';
+    }
+    return list;
+  }
+
   /**
      * Remove stored session for given identifier and auth.
      * @throws If no [[LinkStorage]] adapter is configured or there was an error removing the session data.
      */
-  Future<void> removeSession(String identifier, Authorization auth) {}
+  Future<void> removeSession(String identifier, Authorization auth) async {
+    if (this.storage == null) {
+      throw 'Unable to remove session: No storage adapter configured';
+    }
+    var key = this._sessionKey(identifier, formatAuth(auth));
+    await this.storage.remove(key);
+    await this._touchSession(identifier, auth, remove: true);
+  }
+
   /**
      * Remove all stored sessions for given identifier.
      * @throws If no [[LinkStorage]] adapter is configured or there was an error removing the session data.
      */
-  Future<void> clearSessions(String identifier) {}
+  Future<void> clearSessions(String identifier) async {
+    if (this.storage == null) {
+      throw 'Unable to clear sessions: No storage adapter configured';
+    }
+    var sessions = await this.listSessions(identifier);
+    for (var auth in sessions) {
+      await this.removeSession(identifier, auth);
+    }
+  }
+
   /**
      * Create an eosjs compatible signature provider using this link.
      * @param availableKeys Keys the created provider will claim to be able to sign for.
@@ -312,30 +511,54 @@ class Link implements AbiProvider {
      *       to avoid this use [[LinkSession.makeSignatureProvider]] instead. Sessions can be created with [[Link.login]].
      */
   SignatureProvider makeSignatureProvider(List<String> availableKeys,
-      {LinkTransport transport}) {}
+      {LinkTransport transport}) {
+    //TODO makeSignatureProvider()
+    throw 'not implemented yet';
+  }
+
   /**
      * Create an eosjs authority provider using this link.
      * @note Uses the configured RPC Node's `/v1/chain/get_required_keys` API to resolve keys.
      */
-  eosDart.AuthorityProvider makeAuthorityProvider() {}
-  /** Makes sure session is in storage list of sessions and moves it to top (most recently used). */
-  void _touchSession(String identifier, eosDart.RequiredAuth auth,
-      {bool remove = false}) {}
-  Function get touchSession => _touchSession;
+  eosDart.AuthorityProvider makeAuthorityProvider() {
+    //TODO makeAuthorityProvider()
+    throw 'not implemented yet';
+  }
 
   /** Makes sure session is in storage list of sessions and moves it to top (most recently used). */
-  void _storeSession(String identifier, LinkChannelSession session) {}
-  Function get storeSession => _storeSession;
+  Future<void> _touchSession(String identifier, Authorization auth,
+      {bool remove = false}) async {
+    var auths = await this.listSessions(identifier);
+    var formattedAuth = formatAuth(auth);
+    var existing = auths.indexWhere((a) => formatAuth(a) == formattedAuth);
+    if (existing >= 0) {
+      auths.removeAt(existing);
+    }
+    if (remove == false) {
+      auths.insert(0, auth);
+    }
+    var key = this._sessionKey(identifier, 'list');
+    if (this.storage != null) {
+      //TODO fromjson tojson
+      await this.storage.write(key, jsonEncode(auths));
+    }
+  }
+
+  /** Makes sure session is in storage list of sessions and moves it to top (most recently used). */
+  Future<void> _storeSession(
+      String identifier, LinkChannelSession session) async {
+    var key = this._sessionKey(identifier, formatAuth(session.auth));
+    //TODO fromjson tojson
+    var data = jsonEncode(session.serialize());
+    if (this.storage != null) {
+      await this.storage.write(key, data);
+    }
+    await this._touchSession(identifier, session.auth);
+  }
 
   /** Session storage key for identifier and suffix. */
-  void _sessionKey(String identifier, String suffix) {}
-  Function get sessionKey => _sessionKey;
-
-  @override
-  Future<eosDart.BinaryAbi> getRawAbi(String accountName) {
-    // TODO: implement getRawAbi
-    throw UnimplementedError();
-  }
+  String _sessionKey(String identifier, String suffix) =>
+      '${this.chainId}-${identifier}-${suffix}';
 }
 
 /**
@@ -344,15 +567,19 @@ class Link implements AbiProvider {
  */
 Future<CallbackPayload> waitForCallback(String url,
     {CancelTransaction ctx}) async {
+  //TODO check if completer is same as resove reject
+  var completer = new Completer();
+
   var active = true;
   var retries = 0;
   var socketUrl = url.replaceFirst('/^http/', 'ws');
 
   void handleResponse(String response) {
     try {
-      return json.decode(response);
+      //check decode
+      completer.complete(json.decode(response));
     } catch (e) {
-      throw 'Unable to parse callback JSON: ${e.toString()}';
+      completer.completeError('Unable to parse callback JSON: ${e.toString()}');
     }
   }
 
@@ -395,6 +622,7 @@ Future<CallbackPayload> waitForCallback(String url,
   }
 
   connect();
+  return completer.future;
 }
 
 /**
