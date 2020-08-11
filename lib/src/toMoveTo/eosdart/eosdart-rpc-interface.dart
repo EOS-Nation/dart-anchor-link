@@ -4,9 +4,11 @@ import 'dart:typed_data';
 import 'package:eosdart/eosdart.dart';
 
 /** Return value of `/v1/chain/get_abi` */
-abstract class GetAbiResult {
+class GetAbiResult {
   String account_name;
   Abi abi;
+
+  GetAbiResult(this.account_name, this.abi);
 }
 
 /** Subset of `GetBlockResult` needed to calculate TAPoS fields in transactions */

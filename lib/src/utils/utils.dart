@@ -22,7 +22,7 @@ Uint8List abiEncode(dynamic value, String typeName) {
   }
   var type = types[typeName];
   var buffer = eosDart.SerialBuffer(Uint8List(0));
-  type.serialize(buffer, value);
+  type.serialize(type, buffer, value.toJson());
   return buffer.asUint8List();
 }
 

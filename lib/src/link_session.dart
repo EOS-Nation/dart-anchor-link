@@ -72,7 +72,6 @@ class LinkChannelSession extends LinkSession implements LinkTransport {
     var now = DateTime.now().add(Duration(milliseconds: this._timeout));
     var info = InfoPair()
       ..key = 'expiration'
-      ..key = 'expiration'
       ..value = now.toIso8601String();
 
     if (this.link.transport.onSessionRequest is Function) {

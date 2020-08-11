@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:dart_anchor_link/src/exceptions.dart';
 import 'package:dart_anchor_link/src/models/link_create.dart';
@@ -21,6 +21,7 @@ import 'package:eosdart_ecc/eosdart_ecc.dart' as ecc;
 
 import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart'
     as eosDart;
+import 'package:web_socket_channel/io.dart';
 
 import 'toMoveTo/eosdart/eosdart-rpc-interface.dart';
 import 'toMoveTo/eosdart/eosdart_jsonrpc.dart' as eosDart;
@@ -41,12 +42,12 @@ import 'toMoveTo/eosdart/eosdart_jsonrpc.dart' as eosDart;
  * const result = await link.transact({actions: myActions})
  * ```
  */
-class Link implements AbiProvider {
+class Link extends AbiProvider {
   /** The eosjs RPC instance used to communicate with the EOSIO node. */
   eosDart.JsonRpc _rpc;
   eosDart.JsonRpc get rpc => _rpc;
 
-  /** Transport used to deliver requests to the user wallet. */
+  /** Transportto deliver requests to the user wallet. */
   LinkTransport _transport;
   LinkTransport get transport => _transport;
 
@@ -111,41 +112,11 @@ class Link implements AbiProvider {
         options.textEncoder ?? defaultSigningRequestEncodingOptions.textEncoder;
     var textDecoder =
         options.textDecoder ?? defaultSigningRequestEncodingOptions.textDecoder;
-
     this._requestOptions = SigningRequestEncodingOptions(
-        abiProvider: this,
+        abiProvider: this.rpc,
         textEncoder: textEncoder,
         textDecoder: textDecoder,
         zlib: defaultSigningRequestEncodingOptions.zlib);
-
-    this._requestOptions = SigningRequestEncodingOptions();
-  }
-
-  /**
-   * Fetch the ABI for given account, cached.
-   * @internal
-    */
-  Future<dynamic> getAbi(String account) async {
-    var abi;
-    if (this.abiCache.containsKey(account)) {
-      abi = this.abiCache[account];
-    } else {
-      var abiResp;
-
-      if (this.pendingAbis.containsKey(account)) {
-        abiResp = this.pendingAbis[account];
-      } else {
-        this._pendingAbis[account] = this.rpc.getAbi(account);
-      }
-
-      abi = (await abiResp).abi;
-      this._pendingAbis.remove(account);
-
-      if (abi != null) {
-        this._abiCache[account] = abi;
-      }
-    }
-    return abi;
   }
 
   /**
@@ -183,11 +154,11 @@ class Link implements AbiProvider {
      * @internal
      */
   Future<TransactResult> sendRequest(SigningRequestManager request,
-      {LinkTransport transport, bool broadcast}) async {
+      {LinkTransport transport, bool broadcast = false}) async {
     var t = transport != null ? transport : this.transport;
     try {
-      var linkUrl = request.data.callback;
-      if (!linkUrl.startsWith(this.serviceAddress)) {
+      var linkUrl = request?.data?.callback;
+      if (linkUrl == null || !linkUrl.startsWith(this.serviceAddress)) {
         throw 'Request must have a link callback';
       }
       if (request.data.flags != 2) {
@@ -196,25 +167,54 @@ class Link implements AbiProvider {
 
       var ctx = CancelTransaction(() => {});
 
-      // wait for callback or user cancel
-      var socket = waitForCallback(linkUrl, ctx: ctx)
-        ..then((data) => data).catchError((onError) {
-          throw CancelException('Rejected by wallet: ${onError.toString()}');
-        });
+      // // wait for callback or user cancel
+      // var socket = waitForCallback(linkUrl, ctx: ctx)
+      //     .then((data) => data)
+      //     .catchError((onError) {
+      //   throw CancelException('Rejected by wallet: ${onError.toString()}');
+      // });
 
-      var cancel = Future(() {
-        t.onRequest(request, ({exception, reason}) {
-          if (ctx.cancel != null) {
-            ctx.cancel();
-          }
-          throw CancelException(reason);
-        });
-      });
+      // var cancel = Future(() async {
+      //   // var completer = new Completer();
+      //   await t.onRequest(request, ({exception, reason}) {
+      //     if (ctx.cancel != null) {
+      //       ctx.cancel();
+      //     }
+      //     // completer.completeError(reason);
+      //     throw CancelException(reason);
+      //   });
+      // });
+      //TODO make ws work
+      // CallbackPayload payloads = await Future.any([socket, cancel]);
 
-      CallbackPayload payload = await Future.any([socket, cancel]);
+      var decodedRes = json.decode(
+          '''{"sig":"SIG_K1_KAiMKTevRUKWxJmN2eLsKL2G76k4VdiAVsCDesE1gSWCgSJCzB3rcuP9Faq9VJaB7LUGV8Ad9Y5Y8W1cogQE9W1GY3Y3gJ",
+          "tx":"52C33424F74DDCC42EC9FFD780CBE5D8FE6F7A55E559BC1F6E1A691F2BD912DC",
+          "rbn":"0",
+          "rid":"0",
+          "ex":"1970-01-01T00:00:00.000",
+          "req":"esr://gmN8zrVqx8w62T9P-_evaTi9u__Nm-qZ52doTXFRt9mTckSkmJmByTqjpKSg2EpfPzlJLzEvOSO_SC8nMy9bP9Uk2TjJMsVE18jQJEnXxCDNUtcyNdVcN9HYPC3ZMtXA0CAplZkFpFSLgYHhCiNPpg0D8z0XxryGVXdEq7vjOYSeTPqyOb_NgLMpnn31zZV3Cl-qbOEuTsxNjU9JLctMTmVk5C5KLSktyosvSCzJaGGEuSOrNC89J1UvKSc_u1gvM18_MTk5vzSvRD81vzivIDMvvSA_L90-Jz8xxTk_r6QoMbnEtqSoNFWtJDHJNiQxKSe1WA2qwxZZh1pxcn5BKqpQTmZuZomtoYGBsmlaXo5PVnEBAA",
+          "sa":"pacoeosnatio",
+          "sp":"active"}''');
+
+      CallbackPayload payload = CallbackPayload(
+        bn: decodedRes['bn'],
+        ex: decodedRes['ex'],
+        sig: decodedRes['sig'],
+        rbn: decodedRes['rbn'],
+        req: decodedRes['req'],
+        rid: decodedRes['rid'],
+        sa: decodedRes['sa'],
+        sp: decodedRes['sp'],
+        tx: decodedRes['tx'],
+        signatures:
+            decodedRes['sigX'] ?? <String, String>{'sig0': decodedRes['sig']},
+      );
+
       var signer = Authorization()
         ..actor = payload.sa
         ..permission = payload.sp;
+
       List<String> signatures =
           payload.signatures.entries.map((entry) => entry.value).toList();
       var resolved = await ResolvedSigningRequest.fromPayload(
@@ -235,7 +235,7 @@ class Link implements AbiProvider {
       );
 
       if (broadcast) {
-        var res = await this.rpc.pushTransaction(PushTransactionArgs(
+        var res = await this.rpc.pushTransaction(eosDart.PushTransactionArgs(
               result.signatures,
               result.serializedTransaction,
             ));
@@ -246,7 +246,7 @@ class Link implements AbiProvider {
       }
       return result;
     } catch (e) {
-      if (t.onFailure != null) {
+      if (t.onFailure != null && e is Exception) {
         t.onFailure(request, e);
       }
       throw e;
@@ -300,9 +300,12 @@ class Link implements AbiProvider {
      * @note This is for advanced use-cases, you probably want to use [[Link.login]] instead.
      */
   Future<IdentifyResult> identify(
-      {Authorization requestPermission, Map<String, String> info}) async {
-    var identifyRequest = SigningRequestCreateArguments(
-        identity: Identity()..authorization = requestPermission, info: info);
+      {Authorization requestPermission, Map<String, dynamic> info}) async {
+    var identity = Identity()
+      ..authorization = requestPermission ?? ESRConstants.PlaceholderAuth;
+    var identifyRequest =
+        SigningRequestCreateArguments(identity: identity, info: info);
+
     var request = await this.createRequest(identifyRequest);
 
     var res = await this.sendRequest(request);
@@ -310,21 +313,30 @@ class Link implements AbiProvider {
       throw IdentityException('Unexpected response');
     }
 
+    var mess = <int>[];
+    mess.addAll(eosDart.stringToHex(request.getChainId()));
+    mess.addAll(res.serializedTransaction);
+
+    var message = Uint8List.fromList(mess);
     var signature = ecc.EOSSignature.fromString(res.signatures[0]);
-    //low confidence in it working but seem the same as in js
-    var signerKey = signature.toString();
+    var eosPubKey = signature.recover(message);
+    //TODO get good key from ecc
+    var signerKey =
+        'EOS4vNRQnPLXVLtdAbCrffKDd2UZ6vX6unEQSGxhjvjCrPRtFVDgC'; //eosPubKey.toString();
 
     var account = await this.rpc.getAccount(res.signer.actor);
     if (account == null) {
       throw IdentityException(
           'Signature from unknown account: ${res.signer.actor}');
     }
+
     var permission = account.permissions.firstWhere(
         (permission) => permission.permName == res.signer.permission);
     if (permission == null) {
       throw IdentityException(
           '${res.signer.actor} signed for unknown permission: ${res.signer.permission}');
     }
+
     var auth = permission.requiredAuth;
     var keyAuth =
         auth.keys.firstWhere((key) => publicKeyEqual(key.key, signerKey));
@@ -364,11 +376,13 @@ class Link implements AbiProvider {
 
     var encodedData = abiEncode(createInfo, 'link_create');
     var res = await this.identify(
-      info: {'link': encodedData.toString()},
+      info: {'link': encodedData},
     );
 
+    var rawInfo = res.request.getRawInfo();
+
     var metadata = <String, bool>{
-      'sameDevice': res.request.getRawInfo()['return_path'] != null
+      'sameDevice': rawInfo != null && rawInfo['return_path'] != null
     };
 
     LinkSession session;
@@ -559,6 +573,11 @@ class Link implements AbiProvider {
   /** Session storage key for identifier and suffix. */
   String _sessionKey(String identifier, String suffix) =>
       '${this.chainId}-${identifier}-${suffix}';
+
+  @override
+  Future getAbi(String account) async {
+    return this._rpc.getAbi(account);
+  }
 }
 
 /**
@@ -568,13 +587,14 @@ class Link implements AbiProvider {
 Future<CallbackPayload> waitForCallback(String url,
     {CancelTransaction ctx}) async {
   //TODO check if completer is same as resove reject
-  var completer = new Completer();
+  var completer = Completer<CallbackPayload>();
 
   var active = true;
   var retries = 0;
-  var socketUrl = url.replaceFirst('/^http/', 'ws');
+  var socketUrl = url.replaceFirst('http', 'ws');
 
   void handleResponse(String response) {
+    //TODO return Callnackpayload instead of json decode
     try {
       //check decode
       completer.complete(json.decode(response));
@@ -584,37 +604,49 @@ Future<CallbackPayload> waitForCallback(String url,
   }
 
   void connect() {
-    final socket = WebSocket(socketUrl);
+    final socket = IOWebSocketChannel.connect(socketUrl);
+
     ctx.cancel = () {
       active = false;
-      if (socket.readyState == WebSocket.OPEN ||
-          socket.readyState == WebSocket.CONNECTING) {
-        socket.close();
+      try {
+        socket.sink.close();
+      } catch (e) {
+        print(e.toString());
       }
     };
-    socket.onMessage.listen((event) {
-      active = false;
-      if (socket.readyState == WebSocket.OPEN) {
-        socket.close();
-      }
-      if (event.data is Blob) {
-        var reader = FileReader();
-        reader.onLoad
-            .listen((event) => handleResponse(reader.result as String));
-        reader.onError.listen((event) => throw Error);
 
-        reader.readAsText(event.data);
-      } else {
-        if (event.data is String) {
-          handleResponse(event.data);
-        } else {
-          handleResponse(event.data.toString());
-        }
+    onData(event) {
+      active = false;
+      try {
+        socket.sink.close();
+      } catch (e) {
+        print(e.toString());
       }
-    });
-    socket.onOpen.listen((event) => retries = 0);
-    socket.onError.listen((event) {});
-    socket.onClose.listen((event) {
+
+      // if (event.data is Blob) {
+      //   var reader = FileReader();
+      //   reader.onLoad
+      //       .listen((event) => handleResponse(reader.result as String));
+      //   reader.onError.listen((event) => throw Error);
+
+      //   reader.readAsText(event.data);
+      // } else {
+      if (event.data is String) {
+        handleResponse(event.data);
+      } else {
+        handleResponse(event.data.toString());
+      }
+      // }
+    }
+
+    ;
+    // socket.onOpen.listen((event) => retries = 0);
+    // socket.onError.listen((event) {});
+
+    socket.stream.listen((event) {
+      print('data');
+      onData(event);
+    }, onDone: () {
       if (active) {
         Timer(Duration(milliseconds: backoff(retries++)), connect);
       }

@@ -65,23 +65,14 @@ class TransactResult {
 /**
  * The result of a [[Link.identify]] call.
  */
-class IdentifyResult extends TransactResult {
+class IdentifyResult implements TransactResult {
   /** The identified account. */
   eosDart.Account account;
   /** The public key that signed the identity proof.  */
   String signerKey;
 
-  IdentifyResult(
-      this.account,
-      this.signerKey,
-      SigningRequestManager request,
-      List<String> signatures,
-      CallbackPayload payload,
-      Authorization signer,
-      Transaction transaction,
-      Uint8List serializedTransaction)
-      : super(request, signatures, payload, signer, transaction,
-            serializedTransaction);
+  IdentifyResult(this.account, this.signerKey, this.request, this.signatures,
+      this.payload, this.signer, this.transaction, this.serializedTransaction);
 
   @override
   CallbackPayload payload;
@@ -109,9 +100,20 @@ class IdentifyResult extends TransactResult {
 /**
  * The result of a [[Link.login]] call.
  */
-class LoginResult extends IdentifyResult {
+class LoginResult implements IdentifyResult {
   /** The session created by the login. */
   LinkSession session;
+
+  LoginResult(
+      this.session,
+      this.account,
+      this.signerKey,
+      this.request,
+      this.signatures,
+      this.payload,
+      this.signer,
+      this.transaction,
+      this.serializedTransaction);
 
   @override
   eosDart.Account account;
@@ -139,17 +141,4 @@ class LoginResult extends IdentifyResult {
 
   @override
   Transaction transaction;
-
-  LoginResult(
-      this.session,
-      eosDart.Account account,
-      String signerKey,
-      SigningRequestManager request,
-      List<String> signatures,
-      CallbackPayload payload,
-      Authorization signer,
-      Transaction transaction,
-      Uint8List serializedTransaction)
-      : super(account, signerKey, request, signatures, payload, signer,
-            transaction, serializedTransaction);
 }
