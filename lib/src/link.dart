@@ -167,49 +167,30 @@ class Link extends AbiProvider {
 
       var ctx = CancelTransaction(() => {});
 
-      // // wait for callback or user cancel
-      // var socket = waitForCallback(linkUrl, ctx: ctx)
-      //     .then((data) => data)
-      //     .catchError((onError) {
-      //   throw CancelException('Rejected by wallet: ${onError.toString()}');
-      // });
+      // wait for callback or user cancel
+      var socket = waitForCallback(linkUrl, ctx: ctx)
+          .then((data) => data)
+          .catchError((onError) {
+        throw CancelException('Rejected by wallet: ${onError.toString()}');
+      });
 
-      // var cancel = Future(() async {
-      //   // var completer = new Completer();
-      //   await t.onRequest(request, ({exception, reason}) {
-      //     if (ctx.cancel != null) {
-      //       ctx.cancel();
-      //     }
-      //     // completer.completeError(reason);
-      //     throw CancelException(reason);
-      //   });
-      // });
-      //TODO make ws work
-      // CallbackPayload payloads = await Future.any([socket, cancel]);
+      var cancel = Future(() async {
+        var completer = Completer<CallbackPayload>();
 
-      var decodedRes = json.decode(
-          '''{"sig":"SIG_K1_KAiMKTevRUKWxJmN2eLsKL2G76k4VdiAVsCDesE1gSWCgSJCzB3rcuP9Faq9VJaB7LUGV8Ad9Y5Y8W1cogQE9W1GY3Y3gJ",
-          "tx":"52C33424F74DDCC42EC9FFD780CBE5D8FE6F7A55E559BC1F6E1A691F2BD912DC",
-          "rbn":"0",
-          "rid":"0",
-          "ex":"1970-01-01T00:00:00.000",
-          "req":"esr://gmN8zrVqx8w62T9P-_evaTi9u__Nm-qZ52doTXFRt9mTckSkmJmByTqjpKSg2EpfPzlJLzEvOSO_SC8nMy9bP9Uk2TjJMsVE18jQJEnXxCDNUtcyNdVcN9HYPC3ZMtXA0CAplZkFpFSLgYHhCiNPpg0D8z0XxryGVXdEq7vjOYSeTPqyOb_NgLMpnn31zZV3Cl-qbOEuTsxNjU9JLctMTmVk5C5KLSktyosvSCzJaGGEuSOrNC89J1UvKSc_u1gvM18_MTk5vzSvRD81vzivIDMvvSA_L90-Jz8xxTk_r6QoMbnEtqSoNFWtJDHJNiQxKSe1WA2qwxZZh1pxcn5BKqpQTmZuZomtoYGBsmlaXo5PVnEBAA",
-          "sa":"pacoeosnatio",
-          "sp":"active"}''');
+        t.onRequest(request, ({exception, reason}) {
+          if (ctx.cancel != null) {
+            ctx.cancel();
+          }
+          if (exception != null) {
+            throw exception;
+          }
+          completer.completeError(CancelException(reason));
+        });
 
-      CallbackPayload payload = CallbackPayload(
-        bn: decodedRes['bn'],
-        ex: decodedRes['ex'],
-        sig: decodedRes['sig'],
-        rbn: decodedRes['rbn'],
-        req: decodedRes['req'],
-        rid: decodedRes['rid'],
-        sa: decodedRes['sa'],
-        sp: decodedRes['sp'],
-        tx: decodedRes['tx'],
-        signatures:
-            decodedRes['sigX'] ?? <String, String>{'sig0': decodedRes['sig']},
-      );
+        return completer.future;
+      });
+
+      CallbackPayload payload = await Future.any([socket, cancel]);
 
       var signer = Authorization()
         ..actor = payload.sa
@@ -313,16 +294,18 @@ class Link extends AbiProvider {
       throw IdentityException('Unexpected response');
     }
 
-    var mess = <int>[];
-    mess.addAll(eosDart.stringToHex(request.getChainId()));
-    mess.addAll(res.serializedTransaction);
+    var message = <int>[];
+    message.addAll(eosDart.hexToUint8List(request.getChainId()));
+    message.addAll(res.serializedTransaction);
+    message.addAll(Uint8List(32));
 
-    var message = Uint8List.fromList(mess);
+    //TODO get good key from ecc should come from serTrx
+    //'EOS4vNRQnPLXVLtdAbCrffKDd2UZ6vX6unEQSGxhjvjCrPRtFVDgC'
+
     var signature = ecc.EOSSignature.fromString(res.signatures[0]);
     var eosPubKey = signature.recover(message);
-    //TODO get good key from ecc
-    var signerKey =
-        'EOS4vNRQnPLXVLtdAbCrffKDd2UZ6vX6unEQSGxhjvjCrPRtFVDgC'; //eosPubKey.toString();
+
+    var signerKey = eosPubKey.toString();
 
     var account = await this.rpc.getAccount(res.signer.actor);
     if (account == null) {
@@ -338,12 +321,11 @@ class Link extends AbiProvider {
     }
 
     var auth = permission.requiredAuth;
-    var keyAuth =
-        auth.keys.firstWhere((key) => publicKeyEqual(key.key, signerKey));
-    if (keyAuth == null) {
-      throw IdentityException(
-          '${formatAuth(res.signer)} has no key matching id signature');
-    }
+    var keyAuth = auth.keys.firstWhere(
+        (key) => publicKeyEqual(key.key, signerKey),
+        orElse: () => throw IdentityException(
+            '${formatAuth(res.signer)} has no key matching id signature'));
+
     if (auth.threshold > keyAuth.weight) {
       throw IdentityException(
           '${formatAuth(res.signer)} signature does not reach auth threshold');
@@ -586,7 +568,6 @@ class Link extends AbiProvider {
  */
 Future<CallbackPayload> waitForCallback(String url,
     {CancelTransaction ctx}) async {
-  //TODO check if completer is same as resove reject
   var completer = Completer<CallbackPayload>();
 
   var active = true;
@@ -594,12 +575,24 @@ Future<CallbackPayload> waitForCallback(String url,
   var socketUrl = url.replaceFirst('http', 'ws');
 
   void handleResponse(String response) {
-    //TODO return Callnackpayload instead of json decode
     try {
-      //check decode
-      completer.complete(json.decode(response));
+      var decodedResponse = json.decode(response);
+      CallbackPayload payload = CallbackPayload(
+        bn: decodedResponse['bn'],
+        ex: decodedResponse['ex'],
+        sig: decodedResponse['sig'],
+        rbn: decodedResponse['rbn'],
+        req: decodedResponse['req'],
+        rid: decodedResponse['rid'],
+        sa: decodedResponse['sa'],
+        sp: decodedResponse['sp'],
+        tx: decodedResponse['tx'],
+        signatures: decodedResponse['sigX'] ??
+            <String, String>{'sig0': decodedResponse['sig']},
+      );
+      completer.complete(payload);
     } catch (e) {
-      completer.completeError('Unable to parse callback JSON: ${e.toString()}');
+      completer.completeError('Unable to parse callback JSON: ');
     }
   }
 
@@ -623,28 +616,14 @@ Future<CallbackPayload> waitForCallback(String url,
         print(e.toString());
       }
 
-      // if (event.data is Blob) {
-      //   var reader = FileReader();
-      //   reader.onLoad
-      //       .listen((event) => handleResponse(reader.result as String));
-      //   reader.onError.listen((event) => throw Error);
-
-      //   reader.readAsText(event.data);
-      // } else {
-      if (event.data is String) {
-        handleResponse(event.data);
-      } else {
-        handleResponse(event.data.toString());
+      String data;
+      if (event is Uint8List) {
+        data = utf8.decode(event);
       }
-      // }
+      handleResponse(data.toString());
     }
 
-    ;
-    // socket.onOpen.listen((event) => retries = 0);
-    // socket.onError.listen((event) {});
-
     socket.stream.listen((event) {
-      print('data');
       onData(event);
     }, onDone: () {
       if (active) {
