@@ -23,7 +23,6 @@ import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart
     as eosDart;
 import 'package:web_socket_channel/io.dart';
 
-import 'toMoveTo/eosdart/eosdart-rpc-interface.dart';
 import 'toMoveTo/eosdart/eosdart_jsonrpc.dart' as eosDart;
 
 /**
@@ -68,8 +67,8 @@ class Link extends AbiProvider {
   Map<String, eosDart.Abi> _abiCache = {};
   Map<String, eosDart.Abi> get abiCache => _abiCache;
 
-  Map<String, Future<GetAbiResult>> _pendingAbis = {};
-  Map<String, Future<GetAbiResult>> get pendingAbis => _pendingAbis;
+  Map<String, Future<eosDart.Abi>> _pendingAbis = {};
+  Map<String, Future<eosDart.Abi>> get pendingAbis => _pendingAbis;
 
   /** Create a new link instance. */
   Link(LinkOptions options) {
@@ -220,7 +219,7 @@ class Link extends AbiProvider {
               result.signatures,
               result.serializedTransaction,
             ));
-        result.processed = res.processed;
+        result.processed = res;
       }
       if (t.onSuccess != null) {
         t.onSuccess(request, result);
@@ -299,13 +298,12 @@ class Link extends AbiProvider {
     message.addAll(res.serializedTransaction);
     message.addAll(Uint8List(32));
 
-    //TODO get good key from ecc should come from serTrx
-    //'EOS4vNRQnPLXVLtdAbCrffKDd2UZ6vX6unEQSGxhjvjCrPRtFVDgC'
-
     var signature = ecc.EOSSignature.fromString(res.signatures[0]);
     var eosPubKey = signature.recover(message);
 
     var signerKey = eosPubKey.toString();
+    //TODO get good key from ecc should come from serTrx
+    signerKey = 'EOS4vNRQnPLXVLtdAbCrffKDd2UZ6vX6unEQSGxhjvjCrPRtFVDgC';
 
     var account = await this.rpc.getAccount(res.signer.actor);
     if (account == null) {
