@@ -19,7 +19,9 @@ dependencies:
     git: 
       url: https://github.com/TheRealPaco/eosdart.git
   dart_esr:
-    path: /home/paco/Documents/dev/eosn/dart-esr
+    git: 
+      url: https://github.com/EOS-Nation/dart-esr
+      ref: feature/complete-port-of-esr-js
   dart_anchor_link_console_transport:
     path: /home/paco/Documents/dev/eosn/dart-anchor-link-console-transport
       
