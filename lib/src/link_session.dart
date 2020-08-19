@@ -10,10 +10,9 @@ import 'package:dart_anchor_link/src/link_session_interfaces.dart';
 import 'package:dart_anchor_link/src/link_storage.dart';
 import 'package:dart_anchor_link/src/link_transport.dart';
 import 'package:dart_anchor_link/src/utils/utils.dart';
+import 'package:dart_anchor_link/src/api_interface.dart';
 
 import 'package:dart_esr/dart_esr.dart';
-
-import 'toMoveTo/eosdart/eosdart-api-interface.dart' as eosDart;
 
 class LinkChannelSession extends LinkSession implements LinkTransport {
   LinkChannelSession(
@@ -127,7 +126,7 @@ class LinkChannelSession extends LinkSession implements LinkTransport {
    * From LinkSession 
    */
   @override
-  eosDart.AuthorityProvider makeAuthorityProvider() =>
+  AuthorityProvider makeAuthorityProvider() =>
       this.link.makeAuthorityProvider();
 
   @override
@@ -219,7 +218,7 @@ class LinkFallbackSession extends LinkSession implements LinkTransport {
       this.link.makeSignatureProvider([this.publicKey], transport: this);
 
   @override
-  eosDart.AuthorityProvider makeAuthorityProvider() =>
+  AuthorityProvider makeAuthorityProvider() =>
       this.link.makeAuthorityProvider();
 
   @override

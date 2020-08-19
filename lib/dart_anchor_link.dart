@@ -6,5 +6,7 @@ export 'src/link_session_interfaces.dart';
 export 'src/link_storage.dart';
 export 'src/link_transport.dart';
 export 'src/link.dart';
-
 export 'src/exceptions.dart';
+export 'src/json_rpc.dart';
+
+export 'package:dart_esr/src/utils/esr_constant.dart';

@@ -1,8 +1,7 @@
 import 'package:dart_anchor_link/src/link_storage.dart';
 import 'package:dart_anchor_link/src/link_transport.dart';
+import 'package:dart_anchor_link/src/json_rpc.dart';
 import 'package:dart_esr/dart_esr.dart';
-
-import 'toMoveTo/eosdart/eosdart_jsonrpc.dart';
 
 /**
  * Available options when creating a new [[Link]] instance.

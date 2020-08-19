@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:dart_anchor_link/src/api_interface.dart';
 import 'package:dart_anchor_link/src/exceptions.dart';
+import 'package:dart_anchor_link/src/json_rpc.dart';
 import 'package:dart_anchor_link/src/models/link_create.dart';
 import 'package:dart_anchor_link/src/utils/utils.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:dart_anchor_link/src/link_interfaces.dart';
 import 'package:dart_anchor_link/src/link_options.dart';
 import 'package:dart_anchor_link/src/link_session.dart';
@@ -15,15 +15,12 @@ import 'package:dart_anchor_link/src/link_storage.dart';
 import 'package:dart_anchor_link/src/link_transport.dart';
 import 'package:dart_anchor_link/src/link_session_interfaces.dart';
 
+import 'package:uuid/uuid.dart';
 import 'package:dart_esr/dart_esr.dart';
 import 'package:eosdart/eosdart.dart' as eosDart;
 import 'package:eosdart_ecc/eosdart_ecc.dart' as ecc;
 
-import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart'
-    as eosDart;
-import 'package:web_socket_channel/io.dart';
-
-import 'toMoveTo/eosdart/eosdart_jsonrpc.dart' as eosDart;
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 /**
  * Main class, also exposed as the default export of the library.
@@ -43,8 +40,8 @@ import 'toMoveTo/eosdart/eosdart_jsonrpc.dart' as eosDart;
  */
 class Link extends AbiProvider {
   /** The eosjs RPC instance used to communicate with the EOSIO node. */
-  eosDart.JsonRpc _rpc;
-  eosDart.JsonRpc get rpc => _rpc;
+  JsonRpc _rpc;
+  JsonRpc get rpc => _rpc;
 
   /** Transportto deliver requests to the user wallet. */
   LinkTransport _transport;
@@ -514,7 +511,7 @@ class Link extends AbiProvider {
      * Create an eosjs authority provider using this link.
      * @note Uses the configured RPC Node's `/v1/chain/get_required_keys` API to resolve keys.
      */
-  eosDart.AuthorityProvider makeAuthorityProvider() {
+  AuthorityProvider makeAuthorityProvider() {
     //TODO makeAuthorityProvider()
     throw 'not implemented yet';
   }
@@ -595,7 +592,7 @@ Future<CallbackPayload> waitForCallback(String url,
   }
 
   void connect() {
-    final socket = IOWebSocketChannel.connect(socketUrl);
+    final socket = WebSocketChannel.connect(Uri.parse(socketUrl));
 
     ctx.cancel = () {
       active = false;

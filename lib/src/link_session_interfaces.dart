@@ -1,11 +1,9 @@
 import 'package:dart_anchor_link/src/link.dart';
 import 'package:dart_anchor_link/src/link_interfaces.dart';
 import 'package:dart_anchor_link/src/link_session.dart';
+import 'package:dart_anchor_link/src/api_interface.dart';
 
 import 'package:dart_esr/dart_esr.dart';
-
-import 'package:dart_anchor_link/src/toMoveTo/eosdart/eosdart-api-interface.dart'
-    as eosDart;
 
 /**
  * Type describing a link session that can create a eosjs compatible
@@ -26,7 +24,7 @@ abstract class LinkSession {
   Map<String, dynamic> metadata;
 
   /** Creates a eosjs compatible authority provider. */
-  eosDart.AuthorityProvider makeAuthorityProvider();
+  AuthorityProvider makeAuthorityProvider();
   /** Creates a eosjs compatible signature provider that can sign for the session public key. */
   SignatureProvider makeSignatureProvider();
   /**

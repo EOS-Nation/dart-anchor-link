@@ -77,7 +77,7 @@ class IdentifyResult implements TransactResult {
   @override
   CallbackPayload payload;
 
-  //TODO more precise type
+  //TODO change dynamic for exact type if possible
   @override
   Map<String, dynamic> processed;
 
