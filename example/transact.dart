@@ -8,32 +8,34 @@ import 'console_transport.dart';
 main(List<String> args) => transact();
 
 Future<void> transact() async {
-  try {
-    // initialize the console transport
-    var transport = ConsoleTransport();
+  // initialize the console transport
+  var transport = ConsoleTransport();
 
-    var options = LinkOptions(
-      transport,
-      chainName: ChainName.EOS_JUNGLE2,
-      rpc: JsonRpc('https://jungle.greymass.com', 'v1'),
-    );
+  var options = LinkOptions(
+    transport,
+    chainName: ChainName.EOS,
+    rpc: JsonRpc('https://eos.eosn.io', 'v1'),
+  );
 
-    // initialize the link
-    var link = Link(options);
+  // initialize the link
+  var link = Link(options);
 
-    var auth = <Authorization>[ESRConstants.PlaceholderAuth];
-    var data = <String, String>{'name': 'test'};
-    var action = Action()
-      ..account = 'eosnpingpong'
-      ..name = 'ping'
-      ..authorization = auth
-      ..data = data;
+  var auth = <Authorization>[ESRConstants.PlaceholderAuth];
 
-    var args = TransactArgs(action: action);
+  var data = <String, dynamic>{
+    'voter': ESRConstants.PlaceholderName,
+    'proxy': 'eosnationftw',
+    'producers': [],
+  };
 
-    var res = await link.transact(args);
-    print(res?.processed);
-  } catch (e) {
-    print(e.toString());
-  }
+  var action = Action()
+    ..account = 'eosio'
+    ..name = 'voteproducer'
+    ..authorization = auth
+    ..data = data;
+
+  var args = TransactArgs(action: action);
+
+  var res = await link.transact(args);
+  print(res?.processed);
 }
