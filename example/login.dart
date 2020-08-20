@@ -1,9 +1,9 @@
 import 'package:dart_anchor_link/dart_anchor_link.dart';
 
-import 'package:dart_anchor_link_console_transport/dart_anchor_link_console_transport.dart';
-
 import 'package:dart_anchor_link/src/json_rpc.dart';
 import 'package:dart_esr/dart_esr.dart';
+
+import 'console_transport.dart';
 
 main(List<String> args) => login();
 
