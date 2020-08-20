@@ -14,7 +14,7 @@ Future<void> transact() async {
 
     var options = LinkOptions(
       transport,
-      chainName: ChainName.JUNGLE,
+      chainName: ChainName.EOS_JUNGLE2,
       rpc: JsonRpc('https://jungle.greymass.com', 'v1'),
     );
 

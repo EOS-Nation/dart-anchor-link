@@ -31,7 +31,7 @@ class LinkOptions {
   String chainId;
   /**
    * URL to EOSIO node to communicate with or e eosjs JsonRpc instance.
-   * Defaults to https://eos.greymass.com
+   * Defaults to https://eos.eosn.io
    */
   JsonRpc rpc;
   /**
@@ -59,9 +59,9 @@ class LinkOptions {
  * TODO: Change Jungle for EOS mainnet 
  * 
  * 'chainId':  'aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906',
- * 'rpc':  'https://eos.greymass.com',
+ * 'rpc':  'https://eos.eosn.io',
  */
 final defaults = LinkOptions(null,
-    chainId: ESRConstants.ChainIdLookup[ChainName.EOS_JUNGLE2],
-    rpc: JsonRpc('https://jungle.greymass.com', 'v1'),
+    chainId: ESRConstants.ChainIdLookup[ChainName.EOS],
+    rpc: JsonRpc('https://eos.eosn.io', 'v1'),
     service: 'https://cb.anchor.link');
