@@ -104,15 +104,13 @@ class Link extends AbiProvider {
       this._storage = this.transport.storage;
     }
 
-    var textEncoder =
-        options.textEncoder ?? defaultSigningRequestEncodingOptions.textEncoder;
-    var textDecoder =
-        options.textDecoder ?? defaultSigningRequestEncodingOptions.textDecoder;
+    var textEncoder = options.textEncoder ?? DefaultTextEncoder();
+    var textDecoder = options.textDecoder ?? DefaultTextDecoder();
     this._requestOptions = SigningRequestEncodingOptions(
         abiProvider: this.rpc,
         textEncoder: textEncoder,
         textDecoder: textDecoder,
-        zlib: defaultSigningRequestEncodingOptions.zlib);
+        zlib: DefaultZlibProvider());
   }
 
   /**
